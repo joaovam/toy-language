@@ -1,7 +1,9 @@
+#include <iostream>
 #include"AST.h"
 #include"Lexer.cpp"
 #include"Parser.h"
-#include <iostream>
+#include "ErrorHandler.h"
+
 
 static int getTokPrecedence(){
     if(!isascii(CurTok))
@@ -10,21 +12,6 @@ static int getTokPrecedence(){
     int TokPrec = BinopPrecedence[CurTok];
 
     return (TokPrec <= 0) ? -1 : TokPrec;
-}
-
-
-
-
-
-
-std::unique_ptr<ExprAST> LogError(const char *str){
-    fprintf(stderr, "Error: %s\n", str);
-    return nullptr;
-}
-
-std::unique_ptr<PrototypeAST> LogErrorP(const char *str){
-    LogError(str);
-    return nullptr;
 }
 
 static std::unique_ptr<ExprAST> parseNumberExpr(){
