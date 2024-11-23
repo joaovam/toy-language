@@ -1,5 +1,5 @@
 #include"Lexer.h"
-
+#include<iostream>
 static int gettok(){
     static int LastChar = ' ';
 
@@ -39,17 +39,17 @@ static int gettok(){
 
         if(LastChar != EOF)
             return gettok();
-
-        if(LastChar == EOF)
+    }
+    if(LastChar == EOF)
             return TK_EOF;
         
-        int thisChar = LastChar;
-        LastChar = getchar();
-        return thisChar;
-    }
+    int thisChar = LastChar;
+    LastChar = getchar();
+    return thisChar;
 }
 
 static int CurTok;
 static int getNextToken(){
-    return CurTok = gettok();
+    CurTok = gettok();
+    return CurTok;
 }

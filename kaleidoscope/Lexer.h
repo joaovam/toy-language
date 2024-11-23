@@ -8,8 +8,8 @@ enum Token{
     EXTERN = -3,
 
     //primary
-    IDENTIFIER,
-    NUMBER
+    IDENTIFIER = -4,
+    NUMBER = -5
 };
 
 static std::string IdentifierStr;
