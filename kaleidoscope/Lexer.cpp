@@ -1,7 +1,16 @@
 #include"Lexer.h"
+
 #include<iostream>
-static int gettok(){
-    static int LastChar = ' ';
+
+// Global variables
+std::string IdentifierStr;
+double NumVal;
+int CurTok;
+
+static int LastChar = ' ';
+
+int gettok(){
+    
 
     while(isspace(LastChar))
         LastChar = getchar();
@@ -48,8 +57,8 @@ static int gettok(){
     return thisChar;
 }
 
-static int CurTok;
-static int getNextToken(){
+
+int getNextToken(){
     CurTok = gettok();
     return CurTok;
 }

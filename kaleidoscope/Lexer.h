@@ -1,3 +1,6 @@
+#ifndef LEXER_H
+#define LEXER_H
+
 #include<string>
 
 enum Token{
@@ -12,5 +15,10 @@ enum Token{
     NUMBER = -5
 };
 
-static std::string IdentifierStr;
-static double NumVal;
+extern std::string IdentifierStr;
+extern double NumVal;
+extern int CurTok;
+
+int gettok();
+int getNextToken();
+#endif

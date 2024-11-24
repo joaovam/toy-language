@@ -1,8 +1,7 @@
-#include <iostream>
-#include"AST.h"
-#include"Lexer.cpp"
-#include"Parser.h"
+#include "Parser.h"
 #include "ErrorHandler.h"
+#include "Lexer.h"
+#include <iostream>
 
 
 static int getTokPrecedence(){
