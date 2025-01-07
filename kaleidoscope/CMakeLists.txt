@@ -9,7 +9,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED YES)
 set(CMAKE_CXX_EXTENSIONS NO)
 
 # Find LLVM (assumes llvm-config is in PATH)
-find_program(LLVM_CONFIG llvm-config REQUIRED)
+find_program(LLVM_CONFIG llvm-config-18 REQUIRED)
 
 # Get LLVM flags
 execute_process(COMMAND ${LLVM_CONFIG} --cxxflags OUTPUT_VARIABLE LLVM_CXXFLAGS OUTPUT_STRIP_TRAILING_WHITESPACE)
