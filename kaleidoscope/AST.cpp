@@ -87,8 +87,21 @@ const std::string& PrototypeAST::getName() const {
 }
 
 Function* PrototypeAST::codegen() {
-    // Implementation here (depends on LLVM Module and Context)
-    return nullptr; // Placeholder
+    
+    std::vector<Type*> Doubles(args.size(), Type::getDoubleTy(*context));
+    
+
+    FunctionType *FT = FunctionType::get(Type::getDoubleTy(*context), Doubles, false);
+    
+
+    Function *F = Function::Create(FT, Function::ExternalLinkage, name, module.get());
+    
+
+    unsigned idX = 0;
+    for(auto &arg: F->args())
+        arg.setName(args[idX++]);
+    
+    return F;
 }
 
 // FunctionAST implementation
@@ -96,6 +109,35 @@ FunctionAST::FunctionAST(std::unique_ptr<PrototypeAST> proto, std::unique_ptr<Ex
     : proto(std::move(proto)), body(std::move(body)) {}
 
 Function* FunctionAST::codegen() {
-    // Implementation here (depends on PrototypeAST and ExprAST)
-    return nullptr; // Placeholder
+    Function *f = module->getFunction(proto->getName());//checks for an existing function from a previous extern
+
+    if(!f){
+        f = proto->codegen();
+    }
+
+    if(!f)
+        return nullptr;
+    
+    if(!f->empty())
+        return (Function*)LogErrorV("Function cannot be redefined.");
+    
+
+    BasicBlock *BB = BasicBlock::Create(*context, "entry", f);
+    builder->SetInsertPoint(BB);
+
+    namedValues.clear();
+    
+    for(auto& arg: f->args())
+        namedValues[std::string(arg.getName())] = &arg;
+    
+    if(Value *retVal = body->codegen()){
+        builder->CreateRet(retVal);
+
+        verifyFunction(*f);
+        FPM->run(*f, *FAM);
+        return f;
+    }
+
+    f->eraseFromParent();
+    return nullptr;
 }

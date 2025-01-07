@@ -1,7 +1,23 @@
 #include "Parser.h"
 #include "ErrorHandler.h"
 #include "Lexer.h"
+
 #include <iostream>
+
+std::unique_ptr<LLVMContext> context;
+std::unique_ptr<IRBuilder<>> builder;
+std::unique_ptr<Module> module;
+std::map<std::string, Value*> namedValues;
+std::unique_ptr<KaleidoscopeJIT> JIT;
+std::unique_ptr<FunctionPassManager> FPM;
+std::unique_ptr<LoopAnalysisManager> LAM;
+std::unique_ptr<FunctionAnalysisManager> FAM;
+std::unique_ptr<CGSCCAnalysisManager> CGAM;
+std::unique_ptr<ModuleAnalysisManager> MAM;
+std::unique_ptr<PassInstrumentationCallbacks> PIC;
+std::unique_ptr<StandardInstrumentations> SI;
+std::map<std::string, std::unique_ptr<PrototypeAST>> FunctionProtos;
+ExitOnError ExitOnErr;
 
 
 static int getTokPrecedence(){
@@ -164,18 +180,67 @@ static std::unique_ptr<FunctionAST> parseTopLevelExpr(){
     return nullptr;
 }
 
+static void InitializeModule(){
+    context = std::make_unique<LLVMContext>();
+    
+    module = std::make_unique<Module>("KaleidoscopeJIT", *context);
+    
+    module->setDataLayout(JIT->getDataLayout());
+    
+
+    builder = std::make_unique<IRBuilder<>>(*context);
+    
+
+    FPM = std::make_unique<FunctionPassManager>();
+    
+    LAM = std::make_unique<LoopAnalysisManager>();
+    
+    FAM = std::make_unique<FunctionAnalysisManager>();
+    
+    CGAM = std::make_unique<CGSCCAnalysisManager>();
+    
+    MAM = std::make_unique<ModuleAnalysisManager>();
+    
+    PIC = std::make_unique<PassInstrumentationCallbacks>();
+    
+    SI = std::make_unique<StandardInstrumentations>(*context, true);
+    
+    SI->registerCallbacks(*PIC, MAM.get());
+    
+
+    FPM->addPass(InstCombinePass());
+
+    FPM->addPass(ReassociatePass());
+    FPM->addPass(GVNPass());
+    FPM->addPass(SimplifyCFGPass());
+    
+    PassBuilder PB;
+    PB.registerModuleAnalyses(*MAM);
+    PB.registerFunctionAnalyses(*FAM);
+    PB.crossRegisterProxies(*LAM, *FAM, *CGAM, *MAM);
+}
+
 static void handleDefinition() {
-  if (parseDefinition()) {
-    fprintf(stderr, "Parsed a function definition.\n");
+  if (auto fnAST = parseDefinition()) {
+    if(auto *fnIR = fnAST->codegen()){
+        fprintf(stderr, "Read function definition:\n");
+        fnIR->print(errs());
+        fprintf(stderr, "\n");
+    }
   } else {
     // Skip token for error recovery.
     getNextToken();
   }
+  
 }
 
 static void handleExtern() {
-  if (parseExtern()) {
-    fprintf(stderr, "Parsed an extern\n");
+  if (auto protoAST = parseExtern()) {
+    if(auto *fnIR = protoAST->codegen()){
+        fprintf(stderr, "Read extern:");
+        fnIR->print(errs());
+        fprintf(stderr, "\n");
+    }
   } else {
     // Skip token for error recovery.
     getNextToken();
@@ -184,10 +249,15 @@ static void handleExtern() {
 
 static void handleTopLevelExpression() {
   // Evaluate a top-level expression into an anonymous function.
-  if (parseTopLevelExpr()) {
-    fprintf(stderr, "Parsed a top-level expr\n");
+  if (auto fnAST = parseTopLevelExpr()) {
+    if(auto *fnIR = fnAST->codegen()){
+        fprintf(stderr, "Read top-level expression:");
+        fnIR->print(errs());
+        fprintf(stderr,"\n");
+
+        fnIR->eraseFromParent();
+    }
   } else {
-    // Skip token for error recovery.
     getNextToken();
   }
 }
@@ -222,6 +292,9 @@ static void mainLoop() {
 
 
 int main(){
+    InitializeNativeTarget();
+    InitializeNativeTargetAsmPrinter();
+    InitializeNativeTargetAsmParser();
     BinopPrecedence['<'] = 10;
     BinopPrecedence['+'] = 20;
     BinopPrecedence['-'] = 20;
@@ -229,6 +302,10 @@ int main(){
 
     fprintf(stderr, "ready> ");
     getNextToken();
+    JIT = ExitOnErr(KaleidoscopeJIT::Create());
 
+    InitializeModule();
+    std::cerr << "Module initialized" << std::endl;
     mainLoop();
+    module->print(errs(), nullptr);
 }

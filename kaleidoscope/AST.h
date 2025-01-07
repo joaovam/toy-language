@@ -10,8 +10,19 @@
 #include "llvm/IR/IRBuilder.h"
 #include "llvm/IR/LLVMContext.h"
 #include "llvm/IR/Module.h"
+#include "llvm/IR/PassManager.h"
 #include "llvm/IR/Type.h"
 #include "llvm/IR/Verifier.h"
+#include "llvm/Passes/PassBuilder.h"
+#include "llvm/Passes/StandardInstrumentations.h"
+#include "llvm/Support/TargetSelect.h"
+#include "llvm/Target/TargetMachine.h"
+#include "llvm/Transforms/InstCombine/InstCombine.h"
+#include "llvm/Transforms/Scalar.h"
+#include "llvm/Transforms/Scalar/GVN.h"
+#include "llvm/Transforms/Scalar/Reassociate.h"
+#include "llvm/Transforms/Scalar/SimplifyCFG.h"
+#include "KaleidoscopeJIT/KaleidoscopeJIT.h"
 
 #include <string>
 #include <memory>
@@ -20,11 +31,7 @@
 
 
 using namespace llvm;
-
-static std::unique_ptr<LLVMContext> context;
-static std::unique_ptr<IRBuilder<>> builder;
-static std::unique_ptr<Module> module;
-static std::map<std::string, Value*> namedValues;
+using namespace orc;
 
 class ExprAST {
 public:
@@ -84,5 +91,22 @@ public:
     FunctionAST(std::unique_ptr<PrototypeAST> proto, std::unique_ptr<ExprAST> body);
     Function* codegen();
 };
+
+
+extern std::unique_ptr<LLVMContext> context;
+extern std::unique_ptr<IRBuilder<>> builder;
+extern std::unique_ptr<Module> module;
+extern std::map<std::string, Value*> namedValues;
+extern std::unique_ptr<KaleidoscopeJIT> JIT;
+extern std::unique_ptr<FunctionPassManager> FPM;
+extern std::unique_ptr<LoopAnalysisManager> LAM;
+extern std::unique_ptr<FunctionAnalysisManager> FAM;
+extern std::unique_ptr<CGSCCAnalysisManager> CGAM;
+extern std::unique_ptr<ModuleAnalysisManager> MAM;
+extern std::unique_ptr<PassInstrumentationCallbacks> PIC;
+extern std::unique_ptr<StandardInstrumentations> SI;
+extern std::map<std::string, std::unique_ptr<PrototypeAST>> FunctionProtos;
+
+extern ExitOnError ExitOnErr;
 
 #endif
