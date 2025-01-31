@@ -233,7 +233,7 @@ static void handleDefinition() {
 static void handleExtern() {
   if (auto protoAST = parseExtern()) {
     if (auto *fnIR = protoAST->codegen()) {
-      
+      fnIR->print(errs());
       FunctionProtos[protoAST->getName()] = std::move(protoAST);
     }
   } else {
@@ -251,10 +251,11 @@ static void handleTopLevelExpression() {
       auto RT = JIT->getMainJITDylib().createResourceTracker();
 
       auto TSM = ThreadSafeModule(std::move(module), std::move(context));
+
       ExitOnErr(JIT->addModule(std::move(TSM), RT));
       InitializeModule();
     
-      auto ExprSymbol = ExitOnErr(JIT->lookup("__anon_expr"));;
+      auto ExprSymbol = ExitOnErr(JIT->lookup("__anon_expr"));
 
       double (*FP)() = ExprSymbol.getAddress().toPtr<double(*)()>();
       fprintf(stderr, "Evaluated to %f\n", FP());
