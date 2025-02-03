@@ -143,3 +143,46 @@ Function *FunctionAST::codegen() {
   f->eraseFromParent();
   return nullptr;
 }
+
+Value *IfExprAST::codegen(){
+  Value *condV = Cond->codegen();
+  if(!condV)
+    return nullptr;
+  
+  condV = builder->CreateFCmpONE(condV, ConstantFP::get(*context, APFloat(0.0)), "ifcond");
+
+  Function *function = builder->GetInsertBlock()->getParent();
+  BasicBlock *thenBB = BasicBlock::Create(*context, "then", function);
+  BasicBlock *elseBB = BasicBlock::Create(*context, "else");
+  BasicBlock *mergeBB = BasicBlock::Create(*context, "ifcont");
+
+  builder->CreateCondBr(condV, thenBB, elseBB);
+
+  builder->SetInsertPoint(thenBB);
+  Value * thenV = Then->codegen();
+  if(!thenV)
+    return nullptr;
+  
+  builder->CreateBr(mergeBB);
+  thenBB = builder->GetInsertBlock();
+
+  function->insert(function->end(), elseBB);
+
+  builder->SetInsertPoint(elseBB);
+  Value *elseV = Else->codegen();
+  if(!elseV)
+    return nullptr;
+  
+  builder->CreateBr(mergeBB);
+  elseBB = builder->GetInsertBlock();
+
+  function->insert(function->end(), mergeBB);
+  builder->SetInsertPoint(mergeBB);
+
+  PHINode *PN = builder->CreatePHI(Type::getDoubleTy(*context), 2, "iftmp");
+  PN->addIncoming(thenV, thenBB);
+  PN->addIncoming(elseV, elseBB);
+  
+  return PN;
+}
+

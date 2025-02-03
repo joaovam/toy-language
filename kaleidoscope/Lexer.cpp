@@ -24,6 +24,15 @@ int gettok() {
 
     if (IdentifierStr == "extern")
       return EXTERN;
+    
+    if(IdentifierStr == "if")
+      return IF;
+    
+    if (IdentifierStr == "then")
+      return THEN;
+    
+    if (IdentifierStr == "else")
+      return ELSE;
 
     return IDENTIFIER;
   }

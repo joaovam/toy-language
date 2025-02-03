@@ -36,6 +36,32 @@ static std::unique_ptr<ExprAST> parseNumberExpr() {
   return std::move(result);
 }
 
+static std::unique_ptr<ExprAST> parseIfExpr(){
+  getNextToken();
+  auto cond = parseExpression();
+  if(!cond)
+    return nullptr;
+  
+  if(CurTok != THEN)
+    return LogError("expected then");
+  
+  getNextToken();
+  auto then = parseExpression();
+  if(!then)
+    return nullptr;
+  
+  if(CurTok != ELSE)
+    return LogError("expected else");
+  
+  getNextToken();
+
+  auto Else = parseExpression();
+  if(!Else)
+    return nullptr;
+  
+  return std::make_unique<IfExprAST>(std::move(cond), std::move(then), std::move(Else));
+}
+
 static std::unique_ptr<ExprAST> parsePrimary() {
   switch (CurTok) {
   case IDENTIFIER:
@@ -44,7 +70,8 @@ static std::unique_ptr<ExprAST> parsePrimary() {
     return parseNumberExpr();
   case '(':
     return parseParenExpr();
-
+  case IF:
+    return parseIfExpr();
   default:
     return LogError("unknown token when expecting an expression");
   }
