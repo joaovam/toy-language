@@ -33,7 +33,11 @@ int gettok() {
     
     if (IdentifierStr == "else")
       return ELSE;
-
+    if (IdentifierStr == "for")
+      return FOR;
+    if (IdentifierStr == "in")
+      return IN;
+      
     return IDENTIFIER;
   }
 

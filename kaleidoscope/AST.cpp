@@ -186,3 +186,59 @@ Value *IfExprAST::codegen(){
   return PN;
 }
 
+Value *ForExprAST::codegen(){
+  Value* startVal = start->codegen();
+
+  if(!startVal)
+    return nullptr;
+  
+  Function *function = builder->GetInsertBlock()->getParent();
+  BasicBlock *PreheaderBB = builder->GetInsertBlock();
+  BasicBlock *LoopBB = BasicBlock::Create(*context, "loop", function);
+
+  builder->CreateBr(LoopBB);
+  builder->SetInsertPoint(LoopBB);
+  PHINode *var = builder->CreatePHI(Type::getDoubleTy(*context), 2, varName);
+  var->addIncoming(startVal, PreheaderBB);
+  Value *oldVal = namedValues[varName];
+  namedValues[varName] = var;
+
+  if(!body->codegen())
+    return nullptr;
+  
+  Value *stepVal = nullptr;
+
+  if(step){
+    stepVal = step->codegen();
+    if(!stepVal)
+      return nullptr;
+  }else{
+    stepVal = ConstantFP::get(*context, APFloat(1.0));
+  }
+
+  Value *nextVar = builder->CreateFAdd(var, stepVal, "nextvar");
+
+  Value *endcond = end->codegen();
+
+  if(!endcond)
+    return nullptr;
+
+  endcond = builder->CreateFCmpONE(endcond,
+      ConstantFP::get(*context, APFloat(0.0)), "loopcond");
+    
+  BasicBlock *loopEndBB = builder->GetInsertBlock();
+  BasicBlock *afterBB = BasicBlock::Create(*context, "afterloop", function);
+
+  builder->CreateCondBr(endcond, LoopBB, afterBB);
+
+  builder->SetInsertPoint(afterBB);
+
+  var->addIncoming(nextVar, loopEndBB);
+  if(oldVal)
+    namedValues[varName] = oldVal;
+  else  
+    namedValues.erase(varName);
+
+  return Constant::getNullValue(Type::getDoubleTy(*context));
+}
+

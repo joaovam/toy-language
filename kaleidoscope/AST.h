@@ -101,6 +101,16 @@ public:
     Value *codegen() override;
 };
 
+class ForExprAST : public ExprAST{
+    std::string varName;
+    std::unique_ptr<ExprAST> start, end, step, body;
+public:
+    ForExprAST(const std::string& varName, std::unique_ptr<ExprAST> start, std::unique_ptr<ExprAST> end, 
+    std::unique_ptr<ExprAST> step, std::unique_ptr<ExprAST> body) : varName(varName), start(std::move(start)), end(std::move(end)),
+    step(std::move(step)), body(std::move(body)) {}
+    Value *codegen() override;
+};
+
 
 extern std::unique_ptr<LLVMContext> context;
 extern std::unique_ptr<IRBuilder<>> builder;

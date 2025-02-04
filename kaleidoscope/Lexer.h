@@ -17,6 +17,9 @@ enum Token{
     IF = -6,
     THEN = -7,
     ELSE = -8,
+
+    FOR = -9,
+    IN = -10
 };
 
 extern std::string IdentifierStr;

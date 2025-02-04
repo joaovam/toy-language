@@ -62,6 +62,52 @@ static std::unique_ptr<ExprAST> parseIfExpr(){
   return std::make_unique<IfExprAST>(std::move(cond), std::move(then), std::move(Else));
 }
 
+static std::unique_ptr<ExprAST> parseForExpr(){
+  getNextToken();
+  if(CurTok != IDENTIFIER)
+    return LogError("expected identifier after for");
+  
+  std::string idName = IdentifierStr;
+  getNextToken();
+
+  if(CurTok != '=')
+    return LogError("expected '=' after for");
+  
+  getNextToken();
+  auto start = parseExpression();
+  if(!start)
+    return nullptr;
+  if(CurTok != ',')
+    return LogError("expected ',' after for start value");
+  getNextToken();
+
+
+  auto end = parseExpression();
+  if(!end)
+    return nullptr;
+
+  std::unique_ptr<ExprAST> step;
+
+  if(CurTok == ','){
+    getNextToken();
+    step = parseExpression();
+    if(!step)
+      return nullptr;
+  }
+
+  if(CurTok != IN)
+    return LogError("expected in after for");
+  
+  getNextToken();
+
+  auto body = parseExpression();
+  if(!body)
+    return nullptr;
+
+    return std::make_unique<ForExprAST>(idName, std::move(start), std::move(end), 
+    std::move(step), std::move(body));
+}
+
 static std::unique_ptr<ExprAST> parsePrimary() {
   switch (CurTok) {
   case IDENTIFIER:
@@ -72,6 +118,8 @@ static std::unique_ptr<ExprAST> parsePrimary() {
     return parseParenExpr();
   case IF:
     return parseIfExpr();
+  case FOR:
+    return parseForExpr();
   default:
     return LogError("unknown token when expecting an expression");
   }
@@ -320,6 +368,30 @@ static void mainLoop() {
     fprintf(stderr, "ready> ");
   }
 }
+
+//===----------------------------------------------------------------------===//
+// "Library" functions that can be "extern'd" from user code.
+//===----------------------------------------------------------------------===//
+
+#ifdef _WIN32
+#define DLLEXPORT __declspec(dllexport)
+#else
+#define DLLEXPORT
+#endif
+
+/// putchard - putchar that takes a double and returns 0.
+extern "C" DLLEXPORT double putchard(double X) {
+  fputc((char)X, stderr);
+  return 0;
+}
+
+/// printd - printf that takes a double prints it as "%f\n", returning 0.
+extern "C" DLLEXPORT double printd(double X) {
+  fprintf(stderr, "%f\n", X);
+  return 0;
+}
+
+
 
 int main() {
   InitializeNativeTarget();
