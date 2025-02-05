@@ -19,6 +19,7 @@ std::unique_ptr<PassInstrumentationCallbacks> PIC;
 std::unique_ptr<StandardInstrumentations> SI;
 std::map<std::string, std::unique_ptr<PrototypeAST>> FunctionProtos;
 ExitOnError ExitOnErr;
+std::map<char, int> BinopPrecedence;
 
 static int getTokPrecedence() {
   if (!isascii(CurTok))
@@ -208,26 +209,52 @@ static std::unique_ptr<ExprAST> parseBinOpRHS(int exprPrec,
 }
 
 static std::unique_ptr<PrototypeAST> parsePrototype() {
-  if (CurTok != IDENTIFIER)
-    return LogErrorP("Expected function name in prototype");
+  unsigned kind = 0;
+  unsigned binaryPrecedence = 30;
+  std::string fnName;
 
-  std::string fnName = IdentifierStr;
-  getNextToken();
+  switch (CurTok){
+    default:
+      return LogErrorP("Expected function name in prototype");
+    case IDENTIFIER:
+    fnName = IdentifierStr;
+    kind = 0;
+    getNextToken();
+    break;
 
-  if (CurTok != '(')
-    LogErrorP("Expected '(' in prototype");
+    case BINARY:
+      getNextToken();
+      if(!isascii(CurTok))
+        return LogErrorP("Expected binary operator");
+      fnName = "binary";
+      fnName +=(char)CurTok;
+      kind = 2;
+      getNextToken();
+      if(CurTok == NUMBER){
+        if(NumVal <1 || NumVal > 100)
+          return LogErrorP("Invalid precedence: must be 1..100");
+          binaryPrecedence = (unsigned) NumVal;
+          getNextToken();
+      }
+      break;
+  }
 
+  if(CurTok != '(')
+    return LogErrorP("Expected '(' in prototype");
+  
   std::vector<std::string> argNames;
 
-  while (getNextToken() == IDENTIFIER)
+  while(getNextToken() == IDENTIFIER)
     argNames.push_back(IdentifierStr);
-
-  if (CurTok != ')')
-    LogErrorP("Expected ')' in prototype");
-
+  
+  if(CurTok != ')')
+    return LogErrorP("Expected ')' in prototype");
+  
   getNextToken();
+  if(kind && argNames.size() != kind)
+    return LogErrorP("Invalid number of operands for operator");
 
-  return std::make_unique<PrototypeAST>(fnName, std::move(argNames));
+  return std::make_unique<PrototypeAST>(fnName, std::move(argNames), kind!= 0, binaryPrecedence);
 }
 
 static std::unique_ptr<FunctionAST> parseDefinition() {

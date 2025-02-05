@@ -76,11 +76,22 @@ public:
 class PrototypeAST {
     std::string name;
     std::vector<std::string> args;
+    bool isOperator;
+    unsigned precedence;
 
 public:
-    PrototypeAST(const std::string& name, std::vector<std::string> args);
+    PrototypeAST(const std::string& name, std::vector<std::string> args,
+    bool isOperator = false, unsigned prec = 0);
     const std::string& getName() const;
     Function* codegen();
+
+    bool isUnaryOp() const{ return isOperator && args.size() == 1;}
+    bool isBinaryOp() const{ return isOperator && args.size() == 2;}
+    char getOperatorName()const{
+        assert(isUnaryOp() || isBinaryOp());
+        return name[name.size() - 1];
+    }
+    unsigned getBinaryPrecedence() const { return precedence;}
 };
 
 class FunctionAST {
@@ -125,6 +136,7 @@ extern std::unique_ptr<ModuleAnalysisManager> MAM;
 extern std::unique_ptr<PassInstrumentationCallbacks> PIC;
 extern std::unique_ptr<StandardInstrumentations> SI;
 extern std::map<std::string, std::unique_ptr<PrototypeAST>> FunctionProtos;
+extern std::map<char, int> BinopPrecedence;
 
 extern ExitOnError ExitOnErr;
 

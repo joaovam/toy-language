@@ -59,8 +59,14 @@ Value *BinaryExprAST::codegen() {
     return builder->CreateUIToFP(l, Type::getDoubleTy(*context), "booltmp");
 
   default:
-    return LogErrorV("Invalid binary operator");
+    break;
   }
+  Function *f = getFunction(std::string("binary") + op);
+  assert(f && "binary operator not found");
+
+  Value *ops[2] = {l, r};
+
+  return builder->CreateCall(f, ops, "binop");
 }
 
 // CallExprAST implementation
@@ -88,8 +94,8 @@ Value *CallExprAST::codegen() {
 
 // PrototypeAST implementation
 PrototypeAST::PrototypeAST(const std::string &name,
-                           std::vector<std::string> args)
-    : name(name), args(std::move(args)) {}
+                           std::vector<std::string> args, bool isOperator, unsigned prec)
+    : name(name), args(std::move(args)), isOperator(isOperator), precedence(prec) {}
 
 const std::string &PrototypeAST::getName() const { return name; }
 
@@ -123,6 +129,9 @@ Function *FunctionAST::codegen() {
   Function *f = getFunction(p.getName());
   if(!f)
     return nullptr;
+
+  if(p.isBinaryOp())
+    BinopPrecedence[p.getOperatorName()] = p.getBinaryPrecedence();
 
   BasicBlock *BB = BasicBlock::Create(*context, "entry", f);
   builder->SetInsertPoint(BB);

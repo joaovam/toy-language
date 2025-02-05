@@ -37,6 +37,10 @@ int gettok() {
       return FOR;
     if (IdentifierStr == "in")
       return IN;
+    if(IdentifierStr == "unary")
+      return UNARY;
+    if(IdentifierStr == "binary")
+      return BINARY;
       
     return IDENTIFIER;
   }
