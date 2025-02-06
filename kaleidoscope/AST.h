@@ -122,6 +122,16 @@ public:
     Value *codegen() override;
 };
 
+class UnaryExprAST : public ExprAST{
+    char opcode;
+    std::unique_ptr<ExprAST>operand;
+
+public: 
+    UnaryExprAST(char opcode, std::unique_ptr<ExprAST> operand)
+    : opcode(opcode), operand(std::move(operand)) {}
+    Value *codegen() override;
+};
+
 
 extern std::unique_ptr<LLVMContext> context;
 extern std::unique_ptr<IRBuilder<>> builder;

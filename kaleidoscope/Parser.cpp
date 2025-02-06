@@ -126,6 +126,18 @@ static std::unique_ptr<ExprAST> parsePrimary() {
   }
 }
 
+static std::unique_ptr<ExprAST> parseUnary(){
+  if(!isascii(CurTok) || CurTok == '(' || CurTok == ',')
+    return parsePrimary();
+  
+  int opc = CurTok;
+  getNextToken();
+  if(auto operand = parseUnary())
+    return std::make_unique<UnaryExprAST>(opc, std::move(operand));
+  
+  return nullptr;
+}
+
 static std::unique_ptr<ExprAST> parseExpression() {
   auto LHS = parsePrimary();
   if (!LHS)
@@ -192,7 +204,7 @@ static std::unique_ptr<ExprAST> parseBinOpRHS(int exprPrec,
     int binOp = CurTok;
     getNextToken();
 
-    auto RHS = parsePrimary();
+    auto RHS = parseUnary();
 
     if (!RHS)
       return nullptr;
@@ -221,6 +233,16 @@ static std::unique_ptr<PrototypeAST> parsePrototype() {
     kind = 0;
     getNextToken();
     break;
+
+    case UNARY:
+      getNextToken();
+      if(!isascii((CurTok)))
+        return LogErrorP("Expected unary operator");
+      fnName = "unary";
+      fnName += (char) CurTok;
+      kind = 1;
+      getNextToken();
+      break;
 
     case BINARY:
       getNextToken();

@@ -251,3 +251,14 @@ Value *ForExprAST::codegen(){
   return Constant::getNullValue(Type::getDoubleTy(*context));
 }
 
+Value *UnaryExprAST::codegen(){
+  Value *operandV = operand->codegen();
+  if(!operandV)
+    return nullptr;
+  
+  Function *f = getFunction(std::string("unary") + opcode);
+  if(!f)
+    return LogErrorV("Unknown unary operator");
+  
+  return builder->CreateCall(f, operandV, "unop");
+}
