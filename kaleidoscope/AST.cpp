@@ -1,6 +1,12 @@
 #include "AST.h"
 #include "ErrorHandler.h"
 
+static AllocaInst* CreateEntryBlockAlloca(Function * func, StringRef varName){
+  IRBuilder<> tmpB(&func->getEntryBlock(), func->getEntryBlock().begin());
+
+  return tmpB.CreateAlloca(Type::getDoubleTy(*context), nullptr, varName);
+}
+
 Function *getFunction(std::string name){
   if(auto *F = module->getFunction(name))
     return F;
@@ -23,12 +29,12 @@ Value *NumberExprAST::codegen() {
 VariableExprAST::VariableExprAST(const std::string &name) : name(name) {}
 
 Value *VariableExprAST::codegen() {
-  Value *v = namedValues[name];
+  AllocaInst *a = namedValues[name];
 
-  if (!v)
-    LogErrorV("Unknown variable name");
-
-  return v;
+  if(!a)
+    return LogErrorV("Unknown variable name");
+  
+  return builder->CreateLoad(a->getAllocatedType(), a, name.c_str());
 }
 
 // BinaryExprAST implementation
@@ -138,8 +144,11 @@ Function *FunctionAST::codegen() {
 
   namedValues.clear();
 
-  for (auto &arg : f->args())
-    namedValues[std::string(arg.getName())] = &arg;
+  for (auto &arg : f->args()){
+    AllocaInst* alloca = CreateEntryBlockAlloca(f, arg.getName());
+    builder->CreateStore(&arg, alloca);
+    namedValues[std::string(arg.getName())] = alloca;
+  }
 
   if(Value *retVal = body->codegen()) {
     builder->CreateRet(retVal);
@@ -196,21 +205,23 @@ Value *IfExprAST::codegen(){
 }
 
 Value *ForExprAST::codegen(){
-  Value* startVal = start->codegen();
+  Function *f = builder->GetInsertBlock()->getParent();
+  AllocaInst *alloca = CreateEntryBlockAlloca(f, varName);
 
+  Value* startVal = start->codegen();
   if(!startVal)
     return nullptr;
-  
-  Function *function = builder->GetInsertBlock()->getParent();
+
+  builder->CreateStore(startVal, alloca);
+
   BasicBlock *PreheaderBB = builder->GetInsertBlock();
-  BasicBlock *LoopBB = BasicBlock::Create(*context, "loop", function);
+  BasicBlock *LoopBB = BasicBlock::Create(*context, "loop", f);
 
   builder->CreateBr(LoopBB);
   builder->SetInsertPoint(LoopBB);
-  PHINode *var = builder->CreatePHI(Type::getDoubleTy(*context), 2, varName);
-  var->addIncoming(startVal, PreheaderBB);
-  Value *oldVal = namedValues[varName];
-  namedValues[varName] = var;
+  
+  AllocaInst *oldVal = namedValues[varName];
+  namedValues[varName] = alloca;
 
   if(!body->codegen())
     return nullptr;
@@ -225,24 +236,26 @@ Value *ForExprAST::codegen(){
     stepVal = ConstantFP::get(*context, APFloat(1.0));
   }
 
-  Value *nextVar = builder->CreateFAdd(var, stepVal, "nextvar");
 
   Value *endcond = end->codegen();
 
   if(!endcond)
     return nullptr;
 
+  Value *curVar = builder->CreateLoad(alloca->getAllocatedType(), alloca, varName.c_str());
+  Value *nextVar = builder->CreateAdd(curVar, stepVal, "nextVar");
+  builder->CreateStore(nextVar, alloca);
+
   endcond = builder->CreateFCmpONE(endcond,
       ConstantFP::get(*context, APFloat(0.0)), "loopcond");
     
   BasicBlock *loopEndBB = builder->GetInsertBlock();
-  BasicBlock *afterBB = BasicBlock::Create(*context, "afterloop", function);
+  BasicBlock *afterBB = BasicBlock::Create(*context, "afterloop", f);
 
   builder->CreateCondBr(endcond, LoopBB, afterBB);
 
   builder->SetInsertPoint(afterBB);
 
-  var->addIncoming(nextVar, loopEndBB);
   if(oldVal)
     namedValues[varName] = oldVal;
   else  

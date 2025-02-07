@@ -8,7 +8,7 @@
 std::unique_ptr<LLVMContext> context;
 std::unique_ptr<IRBuilder<>> builder;
 std::unique_ptr<Module> module;
-std::map<std::string, Value *> namedValues;
+std::map<std::string, AllocaInst*> namedValues;
 std::unique_ptr<KaleidoscopeJIT> JIT;
 std::unique_ptr<FunctionPassManager> FPM;
 std::unique_ptr<LoopAnalysisManager> LAM;
@@ -20,6 +20,8 @@ std::unique_ptr<StandardInstrumentations> SI;
 std::map<std::string, std::unique_ptr<PrototypeAST>> FunctionProtos;
 ExitOnError ExitOnErr;
 std::map<char, int> BinopPrecedence;
+
+
 
 static int getTokPrecedence() {
   if (!isascii(CurTok))
@@ -328,9 +330,8 @@ static void InitializeModule() {
   SI = std::make_unique<StandardInstrumentations>(*context, true);
 
   SI->registerCallbacks(*PIC, MAM.get());
-
+  FPM->addPass(PromotePass());
   FPM->addPass(InstCombinePass());
-
   FPM->addPass(ReassociatePass());
   FPM->addPass(GVNPass());
   FPM->addPass(SimplifyCFGPass());

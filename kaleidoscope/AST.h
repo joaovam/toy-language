@@ -23,6 +23,7 @@
 #include "llvm/Transforms/Scalar/Reassociate.h"
 #include "llvm/Transforms/Scalar/SimplifyCFG.h"
 #include "KaleidoscopeJIT/KaleidoscopeJIT.h"
+#include "llvm/Transforms/Utils/Mem2Reg.h"
 
 #include <string>
 #include <memory>
@@ -136,7 +137,7 @@ public:
 extern std::unique_ptr<LLVMContext> context;
 extern std::unique_ptr<IRBuilder<>> builder;
 extern std::unique_ptr<Module> module;
-extern std::map<std::string, Value*> namedValues;
+extern std::map<std::string, AllocaInst*> namedValues;
 extern std::unique_ptr<KaleidoscopeJIT> JIT;
 extern std::unique_ptr<FunctionPassManager> FPM;
 extern std::unique_ptr<LoopAnalysisManager> LAM;
