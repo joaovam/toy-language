@@ -1,2 +1,7 @@
 build/
 .vscode
+# bazel build files
+bazel-bin
+bazel-mlir-tutorial
+bazel-out
+bazel-testlogs
