@@ -52,8 +52,10 @@ class VariableExprAST : public ExprAST {
     std::string name;
 
 public:
-    VariableExprAST(const std::string& name);
+    VariableExprAST(const std::string& name) : name(name) {}
     Value* codegen() override;
+    const std::string &getName() const{return name;}
+
 };
 
 class BinaryExprAST : public ExprAST {
@@ -130,6 +132,17 @@ class UnaryExprAST : public ExprAST{
 public: 
     UnaryExprAST(char opcode, std::unique_ptr<ExprAST> operand)
     : opcode(opcode), operand(std::move(operand)) {}
+    Value *codegen() override;
+};
+
+class VarExprAST : public ExprAST{
+    std::vector<std::pair<std::string, std::unique_ptr<ExprAST>>> varNames;
+    std::unique_ptr<ExprAST> body;
+public:
+    VarExprAST(
+        std::vector<std::pair<std::string, std::unique_ptr<ExprAST>>> varNames,
+        std::unique_ptr<ExprAST> body) 
+        : varNames(std::move(varNames)), body(std::move(body)) {}
     Value *codegen() override;
 };
 

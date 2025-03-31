@@ -111,6 +111,52 @@ static std::unique_ptr<ExprAST> parseForExpr(){
     std::move(step), std::move(body));
 }
 
+static std::unique_ptr<ExprAST> parseVarExpr(){
+  getNextToken(); // eat the var.
+
+  std::vector<std::pair<std::string, std::unique_ptr<ExprAST>>> VarNames;
+
+  // At least one variable name is required.
+  if (CurTok != IDENTIFIER)
+    return LogError("expected identifier after var");
+
+  while (true) {
+    std::string Name = IdentifierStr;
+    getNextToken(); // eat identifier.
+
+    // Read the optional initializer.
+    std::unique_ptr<ExprAST> Init = nullptr;
+    if (CurTok == '=') {
+      getNextToken(); // eat the '='.
+
+      Init = parseExpression();
+      if (!Init)
+        return nullptr;
+    }
+
+    VarNames.push_back(std::make_pair(Name, std::move(Init)));
+
+    // End of var list, exit loop.
+    if (CurTok != ',')
+      break;
+    getNextToken(); // eat the ','.
+
+    if (CurTok != IDENTIFIER)
+      return LogError("expected identifier list after var");
+  }
+
+  // At this point, we have to have 'in'.
+  if (CurTok != IN)
+    return LogError("expected 'in' keyword after 'var'");
+  getNextToken(); // eat 'in'.
+
+  auto Body = parseExpression();
+  if (!Body)
+    return nullptr;
+
+  return std::make_unique<VarExprAST>(std::move(VarNames), std::move(Body));
+}
+
 static std::unique_ptr<ExprAST> parsePrimary() {
   switch (CurTok) {
   case IDENTIFIER:
@@ -123,6 +169,8 @@ static std::unique_ptr<ExprAST> parsePrimary() {
     return parseIfExpr();
   case FOR:
     return parseForExpr();
+  case VAR:
+    return parseVarExpr();
   default:
     return LogError("unknown token when expecting an expression");
   }
@@ -447,6 +495,7 @@ int main() {
   InitializeNativeTarget();
   InitializeNativeTargetAsmPrinter();
   InitializeNativeTargetAsmParser();
+  BinopPrecedence['='] = 2;
   BinopPrecedence['<'] = 10;
   BinopPrecedence['+'] = 20;
   BinopPrecedence['-'] = 20;

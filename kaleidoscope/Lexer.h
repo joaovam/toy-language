@@ -22,7 +22,8 @@ enum Token{
     IN = -10,
 
     BINARY = -11,
-    UNARY = -12
+    UNARY = -12,
+    VAR = -13
 };
 
 extern std::string IdentifierStr;

@@ -25,9 +25,6 @@ Value *NumberExprAST::codegen() {
   return ConstantFP::get(*context, APFloat(val));
 }
 
-// VariableExprAST implementation
-VariableExprAST::VariableExprAST(const std::string &name) : name(name) {}
-
 Value *VariableExprAST::codegen() {
   AllocaInst *a = namedValues[name];
 
@@ -43,6 +40,23 @@ BinaryExprAST::BinaryExprAST(char op, std::unique_ptr<ExprAST> LHS,
     : op(op), LHS(std::move(LHS)), RHS(std::move(RHS)) {}
 
 Value *BinaryExprAST::codegen() {
+  if(op == '='){
+    VariableExprAST * LHSE = static_cast<VariableExprAST*>(LHS.get());
+    if(!LHSE)
+      return LogErrorV("destination of '=' must be a variable");
+    
+    Value *val = RHS->codegen();
+    if(!val)
+      return nullptr;
+    
+    Value *variable = namedValues[LHSE->getName()];
+    if(!variable)
+      return LogErrorV("unknown variable name");
+    
+    builder->CreateStore(val, variable);
+    return val;
+  }
+
   Value *l = LHS->codegen();
   Value *r = RHS->codegen();
 
@@ -243,7 +257,7 @@ Value *ForExprAST::codegen(){
     return nullptr;
 
   Value *curVar = builder->CreateLoad(alloca->getAllocatedType(), alloca, varName.c_str());
-  Value *nextVar = builder->CreateAdd(curVar, stepVal, "nextVar");
+  Value *nextVar = builder->CreateFAdd(curVar, stepVal, "nextVar");
   builder->CreateStore(nextVar, alloca);
 
   endcond = builder->CreateFCmpONE(endcond,
@@ -274,4 +288,36 @@ Value *UnaryExprAST::codegen(){
     return LogErrorV("Unknown unary operator");
   
   return builder->CreateCall(f, operandV, "unop");
+}
+
+Value *VarExprAST::codegen(){
+  std::vector<AllocaInst*> oldBindings;
+  Function *f = builder->GetInsertBlock()->getParent();
+
+  for(unsigned i = 0, e = varNames.size(); i != e; ++i){
+    const std::string &varName = varNames[i].first;
+    ExprAST *init = varNames[i].second.get();
+    Value* initVal;
+    if(init){
+      initVal = init->codegen();
+      if(!initVal)
+        return nullptr;
+    }else{
+      initVal = ConstantFP::get(*context, APFloat(0.0));
+    }
+
+      AllocaInst* alloca = CreateEntryBlockAlloca(f, varName);
+      builder->CreateStore(initVal, alloca);
+      oldBindings.push_back(namedValues[varName]);
+      namedValues[varName] = alloca;
+    
+  }
+
+  Value* bodyVal = body->codegen();
+      if(!bodyVal)
+        return nullptr;
+  for(unsigned i = 0, e = varNames.size(); i!=e; ++i)
+    namedValues[varNames[i].first] = oldBindings[i];
+  
+  return bodyVal;
 }

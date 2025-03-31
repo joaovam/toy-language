@@ -41,6 +41,8 @@ int gettok() {
       return UNARY;
     if(IdentifierStr == "binary")
       return BINARY;
+    if(IdentifierStr == "var")
+      return VAR;
       
     return IDENTIFIER;
   }
